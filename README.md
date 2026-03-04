@@ -2,7 +2,7 @@
 
 Anyone with OP_20 tokens can create vesting schedules for any beneficiary in one transaction. Revenue from deposited fees is shared proportionally to all locked-token holders via a Synthetix O(1) accumulator — no loops, no owner gatekeeping.
 
-**Live:** https://public-vesting.vercel.app/
+**Live:** https://vibe-vest-ai.vercel.app/
 
 ---
 
