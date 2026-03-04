@@ -3,7 +3,11 @@
     "version": "1.0.0",
     "description": "Public Fee-to-Vesting with Revenue Share — OPNet Bitcoin L1 DeFi",
     "type": "module",
+    "engines": {
+        "node": ">=18.0.0"
+    },
     "scripts": {
+        "start": "node agent/ai-agent.mjs",
         "build": "asc src/index.ts --config asconfig.json --target debug",
         "build:release": "asc src/index.ts --config asconfig.json --target release",
         "build:token": "asc src/index_token.ts --config asconfig.json --target token-debug",
@@ -20,15 +24,15 @@
         "@assemblyscript/loader": "^0.28.9",
         "@btc-vision/as-bignum": "^0.1.2",
         "@btc-vision/assemblyscript": "^0.29.2",
+        "@btc-vision/bitcoin": "7.0.0-rc.6",
         "@btc-vision/btc-runtime": "^1.11.0-rc.10",
-        "@btc-vision/opnet-transform": "^1.2.0"
+        "@btc-vision/opnet-transform": "^1.2.0",
+        "@btc-vision/transaction": "1.8.0-rc.10",
+        "opnet": "1.8.1-rc.19"
     },
     "devDependencies": {
-        "@btc-vision/bitcoin": "7.0.0-rc.6",
-        "@btc-vision/transaction": "1.8.0-rc.10",
         "@eslint/js": "^10.0.1",
         "eslint": "^10.0.2",
-        "opnet": "1.8.1-rc.19",
         "ts-node": "^10.9.2",
         "typescript": "^5.9.3",
         "typescript-eslint": "^8.56.1"
