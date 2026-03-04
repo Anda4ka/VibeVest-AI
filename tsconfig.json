@@ -1,0 +1,12 @@
+{
+    "extends": "@btc-vision/btc-runtime",
+    "compilerOptions": {
+        "strict": true,
+        "experimentalDecorators": true,
+        "baseUrl": ".",
+        "paths": {
+            "@btc-vision/btc-runtime/runtime": ["node_modules/@btc-vision/btc-runtime/runtime"]
+        }
+    },
+    "include": ["src/**/*.ts"]
+}

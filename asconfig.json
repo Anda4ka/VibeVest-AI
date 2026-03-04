@@ -1,0 +1,56 @@
+{
+    "targets": {
+        "debug": {
+            "outFile": "build/feevest.debug.wasm",
+            "textFile": "build/feevest.debug.wat",
+            "sourceMap": true,
+            "debug": true
+        },
+        "release": {
+            "outFile": "build/feevest.release.wasm",
+            "textFile": "build/feevest.release.wat",
+            "sourceMap": false,
+            "optimizeLevel": 3,
+            "shrinkLevel": 2
+        },
+        "token-debug": {
+            "outFile": "build/feetoken.debug.wasm",
+            "textFile": "build/feetoken.debug.wat",
+            "sourceMap": true,
+            "debug": true
+        },
+        "executor-debug": {
+            "outFile": "build/executor.debug.wasm",
+            "textFile": "build/executor.debug.wat",
+            "sourceMap": true,
+            "debug": true
+        },
+        "executor-release": {
+            "outFile": "build/executor.release.wasm",
+            "textFile": "build/executor.release.wat",
+            "sourceMap": false,
+            "optimizeLevel": 3,
+            "shrinkLevel": 2
+        }
+    },
+    "options": {
+        "transform": "@btc-vision/opnet-transform",
+        "enable": [
+            "sign-extension",
+            "mutable-globals",
+            "nontrapping-f2i",
+            "bulk-memory",
+            "simd",
+            "reference-types",
+            "multi-value"
+        ],
+        "runtime": "stub",
+        "converge": true,
+        "memoryBase": 0,
+        "initialMemory": 1,
+        "optimizeLevel": 3,
+        "shrinkLevel": 1,
+        "noAssert": false,
+        "exportStart": "start"
+    }
+}

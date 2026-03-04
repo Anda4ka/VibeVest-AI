@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FeeVest — Public Fee-to-Vesting on Bitcoin L1</title>
+  <meta name="description" content="Permissionless vesting vault on OPNet Bitcoin L1. Anyone can deposit tokens and create vesting schedules. Protocol fees distributed proportionally via Synthetix O(1) accumulator." />
+  <meta property="og:title" content="FeeVest — Public Fee-to-Vesting on Bitcoin L1" />
+  <meta property="og:description" content="Fully permissionless fee-to-vesting. depositAndVest() open to all. Revenue share for locked-token holders. No bridges, no L2." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ═══════════════════════════════════════════ TOKENS */
+    :root {
+      --bg:        #02040a;
+      --bg2:       #050814;
+      --surface:   #0b1020;
+      --surface2:  #101528;
+      --surface3:  #131a2e;
+      --border:    rgba(31,41,55,.6);
+      --border2:   rgba(37,48,71,.8);
+      --border-hi: rgba(249,115,22,.35);
+      --orange:    #f97316;
+      --orange2:   #fb923c;
+      --orange-glow: rgba(249,115,22,.18);
+      --cyan:      #22d3ee;
+      --cyan-dim:  rgba(34,211,238,.12);
+      --green:     #4ade80;
+      --green-dim: rgba(74,222,128,.1);
+      --red:       #f87171;
+      --blue:      #60a5fa;
+      --purple:    #a78bfa;
+      --text:      #f9fafb;
+      --text2:     #9ca3af;
+      --muted:     #6b7280;
+      --font:      'Inter', system-ui, -apple-system, sans-serif;
+      --mono:      'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+      --radius:    12px;
+      --radius-lg: 18px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    /* ═══════════════════════════════════════════ SCROLLBAR */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg2); }
+    ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 99px; }
+
+    /* ═══════════════════════════════════════════ UTILS */
+    .container { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+    .section-label {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--orange); margin-bottom: 14px;
+    }
+    .section-label::before {
+      content: ''; display: block; width: 20px; height: 2px;
+      background: var(--orange); border-radius: 2px;
+    }
+    .section-title {
+      font-size: clamp(1.7rem, 3.5vw, 2.6rem);
+      font-weight: 800; line-height: 1.15; letter-spacing: -.025em;
+      margin-bottom: 16px;
+    }
+    .section-sub {
+      font-size: 1rem; color: var(--text2); max-width: 520px; line-height: 1.7;
+    }
+    .section { padding: 96px 0; }
+
+    /* ═══════════════════════════════════════════ BUTTONS */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 12px 26px; border-radius: 10px; font-weight: 700; font-size: .9rem;
+      font-family: var(--font); border: none; cursor: pointer;
+      transition: all .2s cubic-bezier(.4,0,.2,1); white-space: nowrap; outline: none;
+    }
+    .btn:focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; }
+    .btn:active { transform: translateY(1px) scale(.98); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; transform: none !important; }
+    .btn-primary { background: var(--orange); color: #0a0400; box-shadow: 0 0 0 0 var(--orange-glow); }
+    .btn-primary:hover { background: var(--orange2); box-shadow: 0 0 32px 4px var(--orange-glow), 0 4px 20px rgba(249,115,22,.3); transform: translateY(-2px); }
+    .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border2); }
+    .btn-outline:hover { border-color: var(--border-hi); color: var(--orange); background: rgba(249,115,22,.04); transform: translateY(-2px); }
+    .btn-cyan { background: rgba(34,211,238,.1); color: var(--cyan); border: 1px solid rgba(34,211,238,.25); }
+    .btn-cyan:hover { background: rgba(34,211,238,.18); box-shadow: 0 0 24px rgba(34,211,238,.15); transform: translateY(-2px); }
+    .btn-green { background: rgba(74,222,128,.12); color: var(--green); border: 1px solid rgba(74,222,128,.25); }
+    .btn-green:hover { background: rgba(74,222,128,.2); transform: translateY(-2px); }
+    .btn-purple { background: rgba(167,139,250,.1); color: var(--purple); border: 1px solid rgba(167,139,250,.25); }
+    .btn-purple:hover { background: rgba(167,139,250,.18); transform: translateY(-2px); }
+    .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--border2); color: var(--text); }
+    .btn-sm { padding: 8px 16px; font-size: .8rem; border-radius: 8px; }
+    .btn-full { width: 100%; }
+
+    /* ═══════════════════════════════════════════ NAV */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(2,4,10,.8);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 60px; }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.05rem; letter-spacing: -.01em; }
+    .logo-mark {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--orange) 0%, #fbbf24 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+      box-shadow: 0 0 16px rgba(249,115,22,.35);
+    }
+    .logo-text { color: var(--text); }
+    .logo-text em { color: var(--orange); font-style: normal; }
+    .nav-links { display: flex; align-items: center; gap: 6px; }
+    .nav-links a { font-size: .83rem; font-weight: 500; color: var(--text2); padding: 6px 12px; border-radius: 7px; transition: color .15s, background .15s; }
+    .nav-links a:hover { color: var(--text); background: rgba(255,255,255,.04); }
+    .nav-right { display: flex; align-items: center; gap: 10px; }
+    .wallet-info { display: none; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border2); padding: 6px 14px; border-radius: 99px; font-size: .78rem; font-family: var(--mono); }
+    .wallet-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse-dot 2s infinite; }
+    @keyframes pulse-dot { 0%,100%{opacity:1;box-shadow:0 0 6px var(--green)} 50%{opacity:.5;box-shadow:0 0 2px var(--green)} }
+    @media(max-width:680px){ .nav-links { display: none; } }
+
+    /* ═══════════════════════════════════════════ HERO */
+    .hero { position: relative; overflow: hidden; padding: 120px 0 96px; text-align: center; background: var(--bg2); }
+    .hero::before {
+      content: ''; position: absolute; inset: -50%;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% -5%, rgba(249,115,22,.12) 0%, transparent 65%),
+        radial-gradient(ellipse 40% 40% at 85% 60%, rgba(34,211,238,.06) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 50% at 10% 90%, rgba(167,139,250,.05) 0%, transparent 60%);
+      animation: mesh-drift 18s ease-in-out infinite alternate;
+      pointer-events: none;
+    }
+    @keyframes mesh-drift { from { transform: translate(0,0) scale(1); } to { transform: translate(2%,1%) scale(1.04); } }
+    .hero::after {
+      content: ''; position: absolute; inset: 0;
+      background-image: linear-gradient(rgba(249,115,22,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(249,115,22,.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
+      pointer-events: none;
+    }
+    .hero-inner { position: relative; z-index: 1; }
+    .hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; background: rgba(249,115,22,.08); border: 1px solid rgba(249,115,22,.2); color: var(--orange); font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 6px 16px; border-radius: 99px; margin-bottom: 32px; }
+    .hero-eyebrow .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--orange); animation: pulse-dot 2s infinite; }
+    .hero h1 { font-size: clamp(2.6rem, 6vw, 4.4rem); font-weight: 900; line-height: 1.08; letter-spacing: -.035em; margin-bottom: 24px; }
+    .hero h1 .hi-orange { color: var(--orange); }
+    .hero h1 .hi-cyan   { color: var(--cyan); }
+    .hero-sub { font-size: clamp(.95rem, 1.8vw, 1.15rem); color: var(--text2); max-width: 560px; margin: 0 auto 40px; line-height: 1.75; }
+    .hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 52px; }
+    .hero-pills { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border2); color: var(--text2); font-size: .73rem; font-weight: 500; padding: 5px 13px; border-radius: 99px; transition: border-color .2s, color .2s; }
+    .pill:hover { border-color: rgba(249,115,22,.3); color: var(--text); }
+    .pill.live { border-color: rgba(74,222,128,.25); color: var(--green); background: var(--green-dim); }
+    .pill.live .pdot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse-dot 2s infinite; }
+
+    /* ═══════════════════════════════════════════ STATS ROW */
+    .stats-row { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .stats-row-inner { display: grid; grid-template-columns: repeat(4, 1fr); }
+    .stat-card { padding: 28px 24px; text-align: center; position: relative; }
+    .stat-card + .stat-card { border-left: 1px solid var(--border); }
+    .stat-card-icon { font-size: 1.2rem; margin-bottom: 10px; opacity: .7; }
+    .stat-card-value { font-size: 1.7rem; font-weight: 800; font-family: var(--mono); color: var(--orange); line-height: 1; margin-bottom: 6px; letter-spacing: -.02em; }
+    .stat-card-value.v-cyan  { color: var(--cyan); }
+    .stat-card-value.v-green { color: var(--green); }
+    .stat-card-label { font-size: .68rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    @media(max-width:640px){ .stats-row-inner { grid-template-columns: 1fr 1fr; } .stat-card:nth-child(3) { border-left: none; border-top: 1px solid var(--border); } .stat-card:nth-child(4) { border-top: 1px solid var(--border); } }
+
+    /* ═══════════════════════════════════════════ STEPS */
+    .steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 52px; }
+    @media(max-width:900px){ .steps-grid { grid-template-columns: 1fr 1fr; } }
+    @media(max-width:560px){ .steps-grid { grid-template-columns: 1fr; } }
+    .step-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px 26px; position: relative; overflow: hidden; transition: border-color .25s, transform .25s, box-shadow .25s; }
+    .step-card::before { content: ''; position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse 60% 60% at 50% 0%, rgba(249,115,22,.06) 0%, transparent 70%); transition: opacity .25s; }
+    .step-card:hover { border-color: var(--border-hi); transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,.3); }
+    .step-card:hover::before { opacity: 1; }
+    .step-num-pill { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 22px; border-radius: 6px; background: rgba(249,115,22,.12); border: 1px solid rgba(249,115,22,.2); font-size: .68rem; font-weight: 800; font-family: var(--mono); color: var(--orange); letter-spacing: .04em; margin-bottom: 18px; }
+    .step-emoji { font-size: 1.7rem; margin-bottom: 14px; display: block; }
+    .step-card h3 { font-size: .98rem; font-weight: 700; margin-bottom: 10px; letter-spacing: -.01em; }
+    .step-card p { font-size: .82rem; color: var(--text2); line-height: 1.7; }
+    .step-card code { font-family: var(--mono); color: var(--cyan); font-size: .78rem; }
+
+    /* ═══════════════════════════════════════════ ARCHITECTURE */
+    .arch-section { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .arch-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 52px; }
+    @media(max-width:900px){ .arch-grid { grid-template-columns: 1fr 1fr; } }
+    @media(max-width:560px){ .arch-grid { grid-template-columns: 1fr; } }
+    .arch-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px 24px; transition: border-color .25s, transform .25s; }
+    .arch-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+    .arch-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 18px; flex-shrink: 0; }
+    .ai-orange { background: rgba(249,115,22,.1); border: 1px solid rgba(249,115,22,.15); }
+    .ai-cyan   { background: rgba(34,211,238,.1);  border: 1px solid rgba(34,211,238,.15); }
+    .ai-green  { background: rgba(74,222,128,.1);  border: 1px solid rgba(74,222,128,.15); }
+    .ai-purple { background: rgba(167,139,250,.1); border: 1px solid rgba(167,139,250,.15); }
+    .arch-card h3 { font-size: .97rem; font-weight: 700; margin-bottom: 10px; letter-spacing: -.01em; }
+    .arch-card p  { font-size: .81rem; color: var(--text2); line-height: 1.7; margin-bottom: 14px; }
+    .code-chip { display: inline-flex; align-items: center; background: var(--bg); border: 1px solid var(--border2); border-radius: 7px; padding: 5px 11px; font-family: var(--mono); font-size: .7rem; color: var(--cyan); word-break: break-all; }
+
+    /* ═══════════════════════════════════════════ MATH */
+    .math-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 52px; align-items: start; }
+    @media(max-width:720px){ .math-grid { grid-template-columns: 1fr; } }
+    .formula-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+    .formula-card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: .7rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+    .formula-card-header .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--orange); }
+    .formula-body { padding: 20px; }
+    .formula-block { background: var(--bg); border: 1px solid var(--border); border-radius: 9px; padding: 14px 16px; margin-bottom: 12px; font-family: var(--mono); font-size: .8rem; color: var(--orange2); line-height: 1.8; word-break: break-all; }
+    .formula-block strong { color: var(--green); }
+    .formula-note { font-size: .76rem; color: var(--text2); line-height: 1.6; }
+    .num-tag { display: inline-flex; align-items: center; justify-content: center; background: rgba(74,222,128,.12); border: 1px solid rgba(74,222,128,.2); color: var(--green); font-family: var(--mono); font-size: .78rem; font-weight: 700; padding: 1px 8px; border-radius: 5px; }
+
+    /* ═══════════════════════════════════════════ DASHBOARD */
+    #dashboard { background: linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%); border-top: 1px solid var(--border); }
+    .dash-connect-gate { text-align: center; padding: 72px 24px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+    .gate-icon-wrap { width: 72px; height: 72px; border-radius: 20px; background: rgba(249,115,22,.1); border: 1px solid rgba(249,115,22,.2); display: flex; align-items: center; justify-content: center; font-size: 2.2rem; margin: 0 auto 24px; }
+    .dash-connect-gate h3 { font-size: 1.35rem; font-weight: 800; margin-bottom: 10px; }
+    .dash-connect-gate p { font-size: .9rem; color: var(--text2); margin-bottom: 28px; max-width: 320px; margin-left: auto; margin-right: auto; }
+
+    /* Config panel */
+    .cfg-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 20px; }
+    .cfg-panel-label { font-size: .68rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .cfg-panel-label::before { content: ''; width: 12px; height: 2px; background: var(--muted); border-radius: 2px; }
+    .cfg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media(max-width:640px){ .cfg-grid { grid-template-columns: 1fr; } }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 4px; margin-bottom: 20px; width: fit-content; flex-wrap: wrap; }
+    .tab-btn { padding: 8px 20px; border-radius: 7px; font-size: .84rem; font-weight: 600; font-family: var(--font); background: transparent; border: none; cursor: pointer; color: var(--text2); transition: all .15s; outline: none; }
+    .tab-btn.active { background: var(--surface3); color: var(--text); }
+    .tab-btn:hover:not(.active) { color: var(--text); background: rgba(255,255,255,.03); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Dash stats */
+    .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 12px; margin-bottom: 20px; }
+    .dash-stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 16px; }
+    .dash-stat-label { font-size: .68rem; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    .dash-stat-value { font-size: 1.3rem; font-weight: 800; font-family: var(--mono); letter-spacing: -.01em; word-break: break-all; }
+    .dv-orange { color: var(--orange); }
+    .dv-green  { color: var(--green); }
+    .dv-blue   { color: var(--blue); }
+    .dv-purple { color: var(--purple); }
+
+    /* Action cards */
+    .action-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+    .action-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 22px 20px; }
+    .action-card h4 { font-size: .95rem; font-weight: 700; margin-bottom: 6px; }
+    .action-card .ac-desc { font-size: .79rem; color: var(--text2); margin-bottom: 16px; line-height: 1.6; }
+
+    /* Form fields */
+    .form-field { margin-bottom: 10px; }
+    .form-field label { display: block; font-size: .71rem; font-weight: 600; color: var(--text2); margin-bottom: 5px; letter-spacing: .02em; }
+    .form-field input { width: 100%; background: var(--bg2); border: 1px solid var(--border2); border-radius: 8px; padding: 9px 12px; color: var(--text); font-size: .82rem; font-family: var(--mono); outline: none; transition: border-color .15s, box-shadow .15s; }
+    .form-field input:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(249,115,22,.1); }
+    .form-field input::placeholder { color: var(--muted); }
+    .form-field input[readonly] { color: var(--text2); cursor: default; }
+
+    /* Vesting progress */
+    .progress-wrap { background: var(--border); border-radius: 99px; height: 5px; margin-top: 8px; overflow: hidden; }
+    .progress-bar { height: 100%; background: linear-gradient(90deg, var(--orange), var(--orange2)); border-radius: 99px; transition: width .6s cubic-bezier(.4,0,.2,1); }
+    .vesting-info-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 20px; }
+    .vesting-info-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .vesting-info-header strong { font-size: .95rem; font-weight: 700; }
+
+    /* Admin / init box */
+    .init-box { background: rgba(249,115,22,.05); border: 1px solid rgba(249,115,22,.2); border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 16px; }
+    .init-box h4 { color: var(--orange); font-size: .9rem; font-weight: 700; margin-bottom: 6px; }
+    .init-box p { font-size: .8rem; color: var(--text2); margin-bottom: 12px; line-height: 1.6; }
+
+    /* Public badge */
+    .public-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(74,222,128,.08); border: 1px solid rgba(74,222,128,.2); color: var(--green); font-size: .67rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px 10px; border-radius: 5px; margin-left: 8px; vertical-align: middle; }
+
+    /* Flow list */
+    .flow-list { font-size: .8rem; color: var(--text2); line-height: 2; }
+    .flow-list code { font-family: var(--mono); color: var(--orange2); font-size: .75rem; }
+
+    /* Log */
+    .log-section { padding: 0 0 12px; margin-top: 20px; }
+    .log-header { font-size: .68rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    .log-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; max-height: 160px; overflow-y: auto; font-family: var(--mono); font-size: .72rem; line-height: 1.75; }
+    .log-wrap .lok  { color: var(--green); }
+    .log-wrap .lerr { color: var(--red); }
+    .log-wrap .linf { color: var(--cyan); }
+    .log-wrap .lwrn { color: var(--orange); }
+    .log-empty { color: var(--muted); font-style: italic; }
+
+    /* ═══════════════════════════════════════════ SECURITY */
+    .security-section { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .audit-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 52px; }
+    @media(max-width:640px){ .audit-row { grid-template-columns: repeat(3,1fr); } }
+    .audit-badge { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px 16px; text-align: center; transition: border-color .2s; }
+    .audit-badge:hover { border-color: var(--border2); }
+    .audit-num { font-size: 2.2rem; font-weight: 900; font-family: var(--mono); line-height: 1; margin-bottom: 6px; }
+    .an-green  { color: var(--green); }
+    .an-orange { color: var(--orange); }
+    .an-muted  { color: var(--text2); }
+    .audit-sev { font-size: .68rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .checks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 28px; }
+    @media(max-width:640px){ .checks-grid { grid-template-columns: 1fr; } }
+    .check-item { display: flex; align-items: center; gap: 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: 9px; padding: 11px 14px; transition: border-color .2s; }
+    .check-item:hover { border-color: rgba(74,222,128,.2); }
+    .check-icon { width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0; background: rgba(74,222,128,.1); border: 1px solid rgba(74,222,128,.15); display: flex; align-items: center; justify-content: center; font-size: .8rem; }
+    .check-text { font-size: .8rem; color: var(--text2); }
+    .check-text strong { color: var(--text); }
+
+    /* ═══════════════════════════════════════════ ADDRESS CARDS */
+    .addr-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; transition: border-color .2s; }
+    .addr-card:hover { border-color: var(--border2); }
+    .addr-card-label { font-size: .67rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .addr-card-tag { font-size: .6rem; padding: 2px 7px; border-radius: 4px; font-weight: 700; background: rgba(249,115,22,.1); color: var(--orange); border: 1px solid rgba(249,115,22,.2); }
+    .addr-card-tag.tag-cyan { background: rgba(34,211,238,.08); color: var(--cyan); border-color: rgba(34,211,238,.2); }
+    .addr-card-tag.tag-green { background: rgba(74,222,128,.08); color: var(--green); border-color: rgba(74,222,128,.2); }
+    .addr-row { display: flex; align-items: center; gap: 8px; }
+    .addr-value { flex: 1; font-family: var(--mono); font-size: .74rem; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: none; border: none; outline: none; cursor: text; width: 100%; }
+    .addr-value:focus { color: var(--text); }
+    .copy-btn { flex-shrink: 0; width: 28px; height: 28px; border-radius: 7px; background: var(--surface); border: 1px solid var(--border2); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all .15s; color: var(--muted); font-size: .8rem; }
+    .copy-btn:hover { background: var(--surface3); color: var(--text); border-color: var(--orange); }
+    .copy-btn.copied { color: var(--green); border-color: rgba(74,222,128,.4); }
+
+    /* ═══════════════════════════════════════════ TABLE */
+    .ab-table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: .8rem; }
+    .ab-table th { text-align: left; font-size: .67rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--bg); }
+    .ab-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: .79rem; color: var(--text2); vertical-align: middle; }
+    .ab-table tr:last-child td { border-bottom: none; }
+    .ab-table tr:hover td { background: rgba(255,255,255,.02); }
+    .td-label { font-family: var(--font) !important; font-size: .8rem !important; color: var(--text) !important; font-weight: 500; }
+    .td-alice { color: var(--orange) !important; font-weight: 700; }
+    .td-bob   { color: var(--cyan) !important; font-weight: 700; }
+    .td-total { color: var(--green) !important; font-weight: 700; }
+
+    /* ═══════════════════════════════════════════ SCROLL REVEAL */
+    .reveal { opacity: 0; transform: translateY(20px); transition: opacity .55s cubic-bezier(.4,0,.2,1), transform .55s cubic-bezier(.4,0,.2,1); }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .reveal-delay-1 { transition-delay: .08s; }
+    .reveal-delay-2 { transition-delay: .16s; }
+    .reveal-delay-3 { transition-delay: .24s; }
+    .reveal-delay-4 { transition-delay: .32s; }
+    .reveal-delay-5 { transition-delay: .40s; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════ NAV -->
+<nav>
+  <div class="container nav-inner">
+    <a href="#" class="logo">
+      <div class="logo-mark">⚡</div>
+      <span class="logo-text"><em>Fee</em>Vest</span>
+    </a>
+    <div class="nav-links">
+      <a href="#how-it-works">How it works</a>
+      <a href="#features">Architecture</a>
+      <a href="#dashboard">Dashboard</a>
+      <a href="#security">Security</a>
+      <a href="https://github.com/Anda4ka/PublicVesting" target="_blank">GitHub</a>
+    </div>
+    <div class="nav-right">
+      <div class="wallet-info" id="wallet-info">
+        <div class="wallet-dot"></div>
+        <span id="wallet-short">—</span>
+      </div>
+      <button class="btn btn-primary btn-sm" id="nav-connect-btn">Connect Wallet</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════ HERO -->
+<section class="hero">
+  <div class="container hero-inner">
+    <div class="hero-eyebrow">
+      <span class="pulse"></span>
+      OPNet · Bitcoin L1 · VibeCoding Week 2
+    </div>
+    <h1>Permissionless <span class="hi-orange">Fee-to-Vesting</span><br>on <span class="hi-cyan">Bitcoin L1</span></h1>
+    <p class="hero-sub">Anyone can lock tokens for any beneficiary. Protocol fees deposited by any address flow proportionally to all locked-token holders — no owner, no bridges, no L2.</p>
+    <div class="hero-actions">
+      <button class="btn btn-primary" onclick="scrollToDash()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Launch App
+      </button>
+      <a class="btn btn-outline" href="https://github.com/Anda4ka/PublicVesting" target="_blank">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        View on GitHub
+      </a>
+    </div>
+    <div class="hero-pills">
+      <div class="pill live"><span class="pdot"></span> OPNet Testnet — LIVE</div>
+      <div class="pill">🔓 Permissionless</div>
+      <div class="pill">⚡ O(1) distribution</div>
+      <div class="pill">₿ Bitcoin L1</div>
+      <div class="pill">✓ 0 Critical findings</div>
+      <div class="pill">🛡️ StoredBoolean guard</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════ STATS ROW -->
+<div class="stats-row">
+  <div class="container">
+    <div class="stats-row-inner">
+      <div class="stat-card reveal">
+        <div class="stat-card-icon">🔒</div>
+        <div class="stat-card-value" id="sb-locked">—</div>
+        <div class="stat-card-label">Total Locked</div>
+      </div>
+      <div class="stat-card reveal reveal-delay-1">
+        <div class="stat-card-icon">💰</div>
+        <div class="stat-card-value" id="sb-revenue">—</div>
+        <div class="stat-card-label">Revenue Distributed</div>
+      </div>
+      <div class="stat-card reveal reveal-delay-2">
+        <div class="stat-card-icon">⛓</div>
+        <div class="stat-card-value v-cyan" id="sb-block">—</div>
+        <div class="stat-card-label">Block Height</div>
+      </div>
+      <div class="stat-card reveal reveal-delay-3">
+        <div class="stat-card-icon">⚡</div>
+        <div class="stat-card-value v-green">O(1)</div>
+        <div class="stat-card-label">Distribution Complexity</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ HOW IT WORKS -->
+<section class="section" id="how-it-works">
+  <div class="container">
+    <div class="section-label">How it works</div>
+    <h2 class="section-title">Permissionless vesting in 5 steps</h2>
+    <p class="section-sub">FeeVest combines public vesting creation with Synthetix-style revenue sharing — entirely on Bitcoin L1. No owner required for the core flow.</p>
+    <div class="steps-grid">
+      <div class="step-card reveal">
+        <div class="step-num-pill">01</div>
+        <span class="step-emoji">⚙️</span>
+        <h3>Deploy &amp; Initialize</h3>
+        <p>Deploy the WASM contract. Owner calls <code>initialize(revenueToken)</code> once to set the single OP_20 token used for both vesting and revenue distribution.</p>
+      </div>
+      <div class="step-card reveal reveal-delay-1">
+        <div class="step-num-pill">02</div>
+        <span class="step-emoji">🔓</span>
+        <h3>Anyone Deposits &amp; Vests</h3>
+        <p><strong>No owner needed.</strong> Any address calls <code>depositAndVest(amount, beneficiary, cliff, duration)</code>. Tokens pulled via <code>transferFrom</code> and locked immediately.</p>
+      </div>
+      <div class="step-card reveal reveal-delay-2">
+        <div class="step-num-pill">03</div>
+        <span class="step-emoji">💰</span>
+        <h3>Deposit Protocol Revenue</h3>
+        <p>Any address (fee router, DAO, individual) deposits revenue tokens. The global <code>rewardPerToken</code> accumulator updates in O(1) — zero iteration over beneficiaries.</p>
+      </div>
+      <div class="step-card reveal reveal-delay-3">
+        <div class="step-num-pill">04</div>
+        <span class="step-emoji">⏳</span>
+        <h3>Cliff Passes</h3>
+        <p>Once the cliff block is reached, tokens begin vesting linearly. <code>getPendingRelease</code> = vested − already released. Computed per-block from immutable block height.</p>
+      </div>
+      <div class="step-card reveal reveal-delay-4">
+        <div class="step-num-pill">05</div>
+        <span class="step-emoji">🎯</span>
+        <h3>Release &amp; Claim Revenue</h3>
+        <p>Beneficiary calls <code>release()</code> for vested tokens and <code>claimRevenue()</code> for their proportional revenue share. CEI enforced. Reentrancy-protected.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════ ARCHITECTURE -->
+<section class="section arch-section" id="features">
+  <div class="container">
+    <div class="section-label">Architecture</div>
+    <h2 class="section-title">Built for correctness</h2>
+    <p class="section-sub">Every design decision in FeeVest prioritizes safety, permissionlessness, and mathematical correctness on Bitcoin L1.</p>
+    <div class="arch-grid">
+      <div class="arch-card reveal">
+        <div class="arch-icon ai-orange">🔓</div>
+        <h3>Permissionless Creation</h3>
+        <p>Any address can fund a vesting schedule for any beneficiary. No owner restriction on <code style="font-family:var(--mono);color:var(--cyan);font-size:.78rem">depositAndVest()</code>. Griefing mitigated by single-schedule-per-beneficiary guard.</p>
+        <div class="code-chip">depositAndVest(amount, beneficiary, cliff, dur)</div>
+      </div>
+      <div class="arch-card reveal reveal-delay-1">
+        <div class="arch-icon ai-cyan">📊</div>
+        <h3>Synthetix Accumulator</h3>
+        <p>Revenue distributed via <code style="font-family:var(--mono);color:var(--cyan);font-size:.78rem">rewardPerToken</code> global accumulator. Each deposit is O(1). Claims computed instantly from stored debt snapshots — no loops ever.</p>
+        <div class="code-chip">rewardPerToken += (amount × 1e18) / totalLocked</div>
+      </div>
+      <div class="arch-card reveal reveal-delay-2">
+        <div class="arch-icon ai-green">🛡️</div>
+        <h3>Persistent Reentrancy Guard</h3>
+        <p>Lock flag is a <code style="font-family:var(--mono);color:var(--cyan);font-size:.78rem">StoredBoolean</code> in blockchain persistent storage — not in-memory. Survives per-call class re-instantiation unique to OPNet's execution model.</p>
+        <div class="code-chip">StoredBoolean(_locked, false)</div>
+      </div>
+      <div class="arch-card reveal reveal-delay-3">
+        <div class="arch-icon ai-purple">⏳</div>
+        <h3>Block-Based Vesting</h3>
+        <p>Cliff + linear release computed purely from block numbers — no timestamps, no oracle. Deterministic and manipulation-resistant on Bitcoin L1.</p>
+        <div class="code-chip">Blockchain.block.numberU256</div>
+      </div>
+      <div class="arch-card reveal reveal-delay-4">
+        <div class="arch-icon ai-orange">✅</div>
+        <h3>Strict CEI Pattern</h3>
+        <p>State written before every external <code style="font-family:var(--mono);color:var(--cyan);font-size:.78rem">Blockchain.call()</code>. Checks (including computeReleasable) → Effects (updateReward + state) → Interactions. Audited line-by-line.</p>
+        <div class="code-chip">checks → updateReward() → state → callTransfer()</div>
+      </div>
+      <div class="arch-card reveal reveal-delay-5">
+        <div class="arch-icon ai-cyan">🔢</div>
+        <h3>SafeMath Everywhere</h3>
+        <p>All arithmetic uses <code style="font-family:var(--mono);color:var(--cyan);font-size:.78rem">SafeMath.add/sub/mul/div</code>. Zero floating point. No raw u256 operators. Rounding truncates toward zero, favoring the protocol.</p>
+        <div class="code-chip">SafeMath.mul(amount, PRECISION)</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════ MATH -->
+<section class="section" style="background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+  <div class="container">
+    <div class="section-label">Mathematics</div>
+    <h2 class="section-title">Revenue distribution — verified</h2>
+    <p class="section-sub">Example: Alice 70% locked, Bob 30% locked. Two revenue deposits of 1 000 and 700 tokens.</p>
+
+    <div class="formula-card reveal" style="margin-top:52px">
+      <div class="formula-card-header"><span class="dot"></span> Alice &amp; Bob — end-state snapshot</div>
+      <div class="formula-body" style="padding:0">
+        <table class="ab-table">
+          <thead>
+            <tr>
+              <th>Participant</th>
+              <th>Locked</th>
+              <th>Share</th>
+              <th>Deposit 1 (1 000)</th>
+              <th>Deposit 2 (700)</th>
+              <th>Total earned</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="td-label">🟠 Alice</td>
+              <td class="td-alice">7 000</td>
+              <td>70%</td>
+              <td class="td-alice">700</td>
+              <td class="td-alice">400 <span style="font-size:.68rem;color:var(--muted)">(4000 locked)</span></td>
+              <td class="td-alice">1 100 ✓</td>
+            </tr>
+            <tr>
+              <td class="td-label">🔵 Bob</td>
+              <td class="td-bob">3 000</td>
+              <td>30%</td>
+              <td class="td-bob">300</td>
+              <td class="td-bob">600 <span style="font-size:.68rem;color:var(--muted)">(3000 locked)</span></td>
+              <td class="td-bob">600 ✓</td>
+            </tr>
+            <tr>
+              <td class="td-label" style="color:var(--muted)">Σ Total</td>
+              <td>10 000</td>
+              <td>100%</td>
+              <td class="td-total">1 000</td>
+              <td class="td-total">700</td>
+              <td class="td-total">1 700 ✓</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="math-grid">
+      <div>
+        <div class="formula-card reveal reveal-delay-1">
+          <div class="formula-card-header"><span class="dot"></span> Initial Deposit</div>
+          <div class="formula-body">
+            <div class="formula-block">rewardPerToken += 1000 × 10¹⁸ / 10000 = 10¹⁷</div>
+            <p class="formula-note">Global accumulator updated in O(1). No loops over beneficiaries.</p>
+          </div>
+        </div>
+        <div class="formula-card reveal reveal-delay-2" style="margin-top:14px">
+          <div class="formula-card-header"><span class="dot"></span> Claim (Alice — 7 000 locked)</div>
+          <div class="formula-body">
+            <div class="formula-block">earned = 7000 × 10¹⁷ / 10¹⁸ = <strong>700</strong> ✓</div>
+            <p class="formula-note">Bob earns <span class="num-tag">300</span>. Total = 1 000. No dust left.</p>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="formula-card reveal reveal-delay-3">
+          <div class="formula-card-header"><span class="dot"></span> After partial release (Alice releases 3 000)</div>
+          <div class="formula-body">
+            <div class="formula-block">stored pending = 700 (captured first)
+lockedBalance  = 7000 − 3000 = 4000
+rewardDebt     = currentRpt</div>
+            <p class="formula-note" style="margin-bottom:12px">Next deposit of 700 tokens:</p>
+            <div class="formula-block">rewardPerToken += 700 × 10¹⁸ / 7000 = 10¹⁷
+Alice new earn  = 4000 × 10¹⁷ / 10¹⁸ = 400
+Alice total     = 700 + 400 = <strong>1100</strong> ✓
+Bob total       = 3000 × 2×10¹⁷ / 10¹⁸ = <strong>600</strong> ✓
+Grand total     = 1700 = deposited ✓</div>
+            <p class="formula-note">Result: <span class="num-tag">1100</span> + <span class="num-tag">600</span> = <span class="num-tag">1700</span> — perfectly balanced.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════ DASHBOARD -->
+<section class="section" id="dashboard">
+  <div class="container">
+    <div class="section-label">Live Dashboard</div>
+    <h2 class="section-title" style="margin-bottom:8px">Interact with FeeVest</h2>
+    <p class="section-sub" style="margin-bottom:32px">Connect your OP Wallet to vest tokens, release vested amounts, claim revenue, or deposit protocol fees.</p>
+
+    <!-- Config panel -->
+    <div class="cfg-panel">
+      <div class="cfg-panel-label">Contract Configuration</div>
+      <div class="cfg-grid">
+        <div class="addr-card">
+          <div class="addr-card-label">FeeVest Contract <span class="addr-card-tag">Vault</span></div>
+          <div class="addr-row">
+            <input id="cfg-vault" class="addr-value" type="text" placeholder="opt1s… or 0x…" value="opt1sqpyvkfelp96jx4dqjfnrge7ka567wa050ynvkn5z" />
+            <button class="copy-btn" title="Copy" onclick="copyAddr('cfg-vault',this)">⎘</button>
+          </div>
+        </div>
+        <div class="addr-card">
+          <div class="addr-card-label">Token Address <span class="addr-card-tag tag-cyan">OP_20</span></div>
+          <div class="addr-row">
+            <input id="cfg-token" class="addr-value" type="text" placeholder="opt1s… or 0x…" value="opt1sqqagqzgaa4q4wx8wmm0v29mqa2hyyvr5354m7lcf" />
+            <button class="copy-btn" title="Copy" onclick="copyAddr('cfg-token',this)">⎘</button>
+          </div>
+        </div>
+        <div class="addr-card">
+          <div class="addr-card-label">Your Wallet <span class="addr-card-tag tag-green">Auto-filled</span></div>
+          <div class="addr-row">
+            <input id="cfg-wallet" class="addr-value" type="text" placeholder="connect wallet to auto-fill…" readonly />
+            <button class="copy-btn" title="Copy" onclick="copyAddr('cfg-wallet',this)">⎘</button>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn btn-ghost btn-sm" onclick="loadDashboard()">↻ Refresh</button>
+      </div>
+    </div>
+
+    <!-- Connect gate -->
+    <div id="dash-gate">
+      <div class="dash-connect-gate">
+        <div class="gate-icon-wrap">⚡</div>
+        <h3>Connect your OP Wallet</h3>
+        <p>View your vesting schedule, pending revenue, and interact with FeeVest directly from your browser.</p>
+        <button class="btn btn-primary" onclick="connectWallet()">Connect OP Wallet</button>
+      </div>
+    </div>
+
+    <!-- Dashboard content -->
+    <div id="dash-content" style="display:none">
+
+      <!-- Stats -->
+      <div class="dash-grid" id="global-stats">
+        <div class="dash-stat"><div class="dash-stat-label">Total Locked</div><div class="dash-stat-value dv-orange" id="ds-locked">—</div></div>
+        <div class="dash-stat"><div class="dash-stat-label">Revenue Deposited</div><div class="dash-stat-value dv-orange" id="ds-revenue">—</div></div>
+        <div class="dash-stat"><div class="dash-stat-label">Your Releasable</div><div class="dash-stat-value dv-green" id="ds-releasable">—</div></div>
+        <div class="dash-stat"><div class="dash-stat-label">Pending Revenue</div><div class="dash-stat-value dv-blue" id="ds-pending">—</div></div>
+      </div>
+
+      <!-- Vesting progress -->
+      <div id="vesting-progress-wrap" class="vesting-info-card" style="display:none">
+        <div class="vesting-info-header">
+          <strong>Your Vesting Schedule</strong>
+          <span style="font-size:.75rem;color:var(--text2)" id="vp-label">—</span>
+        </div>
+        <div class="progress-wrap"><div class="progress-bar" id="vp-bar" style="width:0%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:.71rem;color:var(--muted);margin-top:8px;">
+          <span>Start block <span id="vp-start" style="color:var(--text2)">—</span></span>
+          <span id="vp-pct" style="color:var(--orange);font-weight:600">0%</span>
+          <span>Duration <span id="vp-dur" style="color:var(--text2)">—</span> blocks</span>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('release')">Release &amp; Claim</button>
+        <button class="tab-btn" onclick="switchTab('vest')">Deposit &amp; Vest</button>
+        <button class="tab-btn" onclick="switchTab('deposit')">Deposit Revenue</button>
+        <button class="tab-btn" onclick="switchTab('admin')">Admin</button>
+      </div>
+
+      <!-- Tab: Release & Claim -->
+      <div class="tab-panel active" id="tab-release">
+        <div class="action-grid">
+          <div class="action-card">
+            <h4>Release Vested Tokens</h4>
+            <p class="ac-desc">Claim your linearly vested tokens. Nothing released until cliff block passes. Reentrancy-protected, CEI-enforced.</p>
+            <div style="font-family:var(--mono);font-size:.8rem;color:var(--text2);background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:11px;margin-bottom:14px;">
+              Available: <span id="rel-available" style="color:var(--green);font-weight:700">—</span>
+            </div>
+            <button class="btn btn-primary btn-full" onclick="doRelease()">Release Tokens</button>
+          </div>
+          <div class="action-card">
+            <h4>Claim Revenue Share</h4>
+            <p class="ac-desc">Claim your proportional share of all protocol revenue deposited since your last claim. Computed via O(1) reward-per-token accumulator.</p>
+            <div style="font-family:var(--mono);font-size:.8rem;color:var(--text2);background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:11px;margin-bottom:14px;">
+              Pending: <span id="claim-pending" style="color:var(--blue);font-weight:700">—</span>
+            </div>
+            <button class="btn btn-cyan btn-full" onclick="doClaimRevenue()">Claim Revenue</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Deposit & Vest (PUBLIC) -->
+      <div class="tab-panel" id="tab-vest">
+        <div class="action-grid">
+          <div class="action-card">
+            <h4>Deposit &amp; Vest <span class="public-badge">Public</span></h4>
+            <p class="ac-desc">Permissionless. Approve tokens, then lock them for any beneficiary with cliff + linear vesting. You pay the tokens, beneficiary receives the vesting.</p>
+            <div class="form-field"><label>Beneficiary Address</label><input id="dv-beneficiary" type="text" placeholder="bcrt1p… or 0x…" /></div>
+            <div class="form-field"><label>Amount (tokens, e.g. 1 or 1.5)</label><input id="dv-amount" type="text" placeholder="1" /><small id="dv-amount-preview" style="color:var(--muted);font-size:.73rem;margin-top:4px;display:block;font-family:var(--mono)"></small></div>
+            <div class="form-field"><label>Cliff (blocks before vesting starts)</label><input id="dv-cliff" type="text" placeholder="10" /></div>
+            <div class="form-field"><label>Duration (total blocks to vest 100%)</label><input id="dv-duration" type="text" placeholder="100" /></div>
+            <button class="btn btn-purple btn-full" onclick="doDepositAndVest()">Approve &amp; Vest</button>
+          </div>
+          <div class="action-card" style="background:var(--bg2);">
+            <h4 style="color:var(--text2);margin-bottom:14px">Vesting parameters</h4>
+            <div class="flow-list">
+              <strong style="color:var(--text)">Cliff</strong>: blocks from now before anything vests<br>
+              <strong style="color:var(--text)">Duration</strong>: total blocks for 100% to vest<br>
+              <strong style="color:var(--text)">Formula</strong>: vested = amount × (block − start) / duration<br><br>
+              Example: cliff=10, duration=100<br>
+              → After 10 blocks: 0 releasable<br>
+              → After 55 blocks: 55% releasable<br>
+              → After 100 blocks: 100% releasable<br><br>
+              <strong style="color:var(--orange)">Note</strong>: one active schedule per beneficiary.<br>New schedule allowed only if previous is not present.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Deposit Revenue -->
+      <div class="tab-panel" id="tab-deposit">
+        <div class="action-grid">
+          <div class="action-card">
+            <h4>Deposit Protocol Revenue <span class="public-badge">Public</span></h4>
+            <p class="ac-desc">Anyone deposits revenue tokens for proportional distribution to locked-token holders. The increaseAllowance + depositRevenue flow runs in sequence automatically.</p>
+            <div class="form-field"><label>Amount (tokens, e.g. 1 or 1.5)</label><input id="dep-amount" type="text" placeholder="1" /><small id="dep-amount-preview" style="color:var(--muted);font-size:.73rem;margin-top:4px;display:block;font-family:var(--mono)"></small></div>
+            <button class="btn btn-green btn-full" onclick="doDepositRevenue()">Deposit Revenue</button>
+          </div>
+          <div class="action-card" style="background:var(--bg2);">
+            <h4 style="color:var(--text2);margin-bottom:14px">How revenue flows</h4>
+            <div class="flow-list">
+              1. You call <code>increaseAllowance(vault, amount)</code><br>
+              2. Vault pulls tokens via <code>transferFrom</code><br>
+              3. <code>rewardPerToken</code> accumulates globally<br>
+              4. Each beneficiary's <code>pendingRevenue</code> grows<br>
+              5. No loops — O(1) per deposit ✓
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Admin -->
+      <div class="tab-panel" id="tab-admin">
+        <div class="init-box">
+          <h4>⚙️ Initialize FeeVest (one-time, owner only)</h4>
+          <p>Must be called once by owner right after deployment. Sets the OP_20 token address used for both vesting and revenue distribution. Uses the Token Address from the config panel above. Cannot be changed after initialization.</p>
+          <button class="btn btn-primary btn-full" onclick="doInitialize()">Initialize FeeVest</button>
+        </div>
+        <div class="init-box" style="border-color:rgba(74,222,128,.2);background:rgba(74,222,128,.05)">
+          <h4 style="color:var(--green)">🪙 Mint FEE Tokens (deployer only)</h4>
+          <p>Mint FEE tokens to any address for testing. Only the contract deployer can call this.</p>
+          <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+            <input id="mint-to" type="text" class="addr-value" style="flex:2;min-width:200px"
+              placeholder="Recipient address (opt1p… or your wallet)" />
+            <input id="mint-amount" type="number" class="addr-value" style="flex:1;min-width:100px;max-width:160px"
+              placeholder="Amount (e.g. 10000)" value="10000" />
+          </div>
+          <button class="btn btn-success btn-full" onclick="doMint()">Mint FEE Tokens</button>
+          <div id="mint-balance" style="font-size:.78rem;color:var(--text2);margin-top:8px;min-height:1.2em"></div>
+        </div>
+        <div style="font-size:.8rem;color:var(--text2);background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;line-height:1.7;">
+          After initialization all core functions are permissionless — no further owner actions required for normal protocol operation.
+        </div>
+      </div>
+
+      <!-- Activity log -->
+      <div class="log-section">
+        <div class="log-header">Activity</div>
+        <div class="log-wrap" id="activity-log">
+          <div class="log-empty">Wallet connected. Waiting for actions…</div>
+        </div>
+      </div>
+
+    </div><!-- /dash-content -->
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════ SECURITY -->
+<section class="section security-section" id="security">
+  <div class="container">
+    <div class="section-label">Security</div>
+    <h2 class="section-title">AI-assisted audit — 0 critical findings</h2>
+    <p class="section-sub">All 29 critical vulnerability patterns and 20 OPNet-specific attack surfaces checked. Audited by OPNet Bob MCP.</p>
+    <div class="audit-row">
+      <div class="audit-badge reveal"><div class="audit-num an-green">0</div><div class="audit-sev">Critical</div></div>
+      <div class="audit-badge reveal reveal-delay-1"><div class="audit-num an-green">0</div><div class="audit-sev">High</div></div>
+      <div class="audit-badge reveal reveal-delay-2"><div class="audit-num an-green">0</div><div class="audit-sev">Medium</div></div>
+      <div class="audit-badge reveal reveal-delay-3"><div class="audit-num an-orange">1</div><div class="audit-sev">Low (design)</div></div>
+      <div class="audit-badge reveal reveal-delay-4"><div class="audit-num an-muted">2</div><div class="audit-sev">Info</div></div>
+    </div>
+    <div class="checks-grid">
+      <div class="check-item reveal"><div class="check-icon">✅</div><div class="check-text"><strong>SafeMath</strong> — all u256 arithmetic ops</div></div>
+      <div class="check-item reveal reveal-delay-1"><div class="check-icon">✅</div><div class="check-text"><strong>StoredBoolean</strong> — persistent reentrancy guard</div></div>
+      <div class="check-item reveal reveal-delay-2"><div class="check-icon">✅</div><div class="check-text"><strong>Strict CEI</strong> — computeReleasable before updateReward</div></div>
+      <div class="check-item reveal reveal-delay-3"><div class="check-icon">✅</div><div class="check-text"><strong>tx.sender</strong> — never tx.origin</div></div>
+      <div class="check-item reveal reveal-delay-4"><div class="check-icon">✅</div><div class="check-text"><strong>No loops</strong> — O(1) accumulator pattern</div></div>
+      <div class="check-item reveal"><div class="check-icon">✅</div><div class="check-text"><strong>No floats</strong> — pure integer arithmetic</div></div>
+      <div class="check-item reveal reveal-delay-1"><div class="check-icon">✅</div><div class="check-text"><strong>Block height</strong> — no timestamp oracle</div></div>
+      <div class="check-item reveal reveal-delay-2"><div class="check-icon">✅</div><div class="check-text"><strong>BytesWriter</strong> — buffer sizes match writes</div></div>
+      <div class="check-item reveal reveal-delay-3"><div class="check-icon">✅</div><div class="check-text"><strong>increaseAllowance</strong> — ATK-05 mitigated in frontend</div></div>
+      <div class="check-item reveal reveal-delay-4"><div class="check-icon">✅</div><div class="check-text"><strong>AddressMemoryMap</strong> — no unsafe built-in Map</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════ FOOTER -->
+<footer>
+  <div class="container footer-inner" style="display:flex;flex-direction:column;align-items:center;gap:28px;text-align:center;padding:56px 0 36px;">
+    <div style="display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.1rem;">
+      <div class="logo-mark" style="width:28px;height:28px;font-size:14px;">⚡</div>
+      <span><em style="color:var(--orange);font-style:normal">Fee</em>Vest</span>
+    </div>
+    <div style="width:40px;height:1px;background:var(--border);"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+      <a href="https://github.com/Anda4ka/PublicVesting" target="_blank" style="font-size:.82rem;color:var(--text2);padding:5px 12px;border-radius:7px;transition:color .15s,background .15s;" onmouseover="this.style.color='var(--text)';this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.color='var(--text2)';this.style.background=''">GitHub</a>
+      <a href="https://vibecode.finance/challenge" target="_blank" style="font-size:.82rem;color:var(--text2);padding:5px 12px;border-radius:7px;transition:color .15s;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text2)'">VibeCoding Challenge</a>
+      <a href="https://opnet.org" target="_blank" style="font-size:.82rem;color:var(--text2);padding:5px 12px;border-radius:7px;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text2)'">OPNet</a>
+      <a href="#security" style="font-size:.82rem;color:var(--text2);padding:5px 12px;border-radius:7px;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text2)'">Audit Report</a>
+    </div>
+    <div style="font-size:.74rem;color:var(--muted);">Built for VibeCoding Week 2 · OPNet Bitcoin L1 · MIT License</div>
+  </div>
+</footer>
+
+<!-- ═══════════════════════════════════ SCROLL REVEAL -->
+<script>
+  const _ro = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); _ro.unobserve(e.target); } });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.reveal').forEach(el => _ro.observe(el));
+</script>
+
+<!-- ═══════════════════════════════════ SCRIPT -->
+<script type="module">
+  const RPC_URL = 'https://testnet.opnet.org';
+  const MAX_SAT = 50_000n;
+
+  let _provider = null, _network = null, _opnet = null;
+  let walletAddress = null;
+  let _walletAddrObj = null;
+  let _AddressClass = null;
+  let _btcAddress = null;
+  const _addrCache = {};
+  // Pre-seed hex cache with deployed testnet contracts (used when RPC is unavailable).
+  // These are the tweakedPubkey hashes from OPScan.
+  const _hexCache = {
+    'opt1sqpyvkfelp96jx4dqjfnrge7ka567wa050ynvkn5z': '0x2242828d39997f585b6f11a72935406ddf8773af55cb5fbdaee5ee51c343ceb1',
+    'opt1sqqagqzgaa4q4wx8wmm0v29mqa2hyyvr5354m7lcf':  '0x7a84406f37183bf5ec69de576e8e99b628635650ce82ee4b17d9efceeba25ad1',
+  };
+  let _ownerAddrForSim = null;
+
+  // Resolves any address format to a '0x...' hex string suitable for getContract().
+  async function resolveHex(address) {
+    if (!address) return null;
+    if (address.startsWith('0x')) return address;
+    if (_hexCache[address]) return _hexCache[address];
+    // Try RPC
+    try {
+      const resp = await fetch(RPC_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'btc_getPublicKeyInfo',
+                               params: [address], id: 1 })
+      });
+      const json = await resp.json();
+      const inf = json?.result?.[address];
+      const hash = inf?.tweakedPubkey;
+      if (hash) {
+        const hex = hash.startsWith('0x') ? hash : '0x' + hash;
+        _hexCache[address] = hex;
+        return hex;
+      }
+    } catch(e) { console.warn('[resolveHex] RPC failed for', address, e.message); }
+    // Fallback: bech32-decode the address to get the 32-byte witness program
+    if (_btcAddress) {
+      try {
+        const decoded = _btcAddress.fromBech32(address);
+        if (decoded?.data?.length >= 32) {
+          const bytes = Array.from(decoded.data).slice(0, 32);
+          const hex = '0x' + bytes.map(b => b.toString(16).padStart(2,'0')).join('');
+          console.log('[resolveHex] bech32 decoded:', address, '→', hex);
+          _hexCache[address] = hex;
+          return hex;
+        }
+      } catch(e) { console.warn('[resolveHex] bech32 decode failed:', e.message); }
+    }
+    return null;
+  }
+
+  async function getFromAddr() {
+    if (_ownerAddrForSim) return _ownerAddrForSim;
+    const cfg = getCfg();
+    if (!cfg.vault || !_opnet) return _walletAddrObj;
+    try {
+      const vaultHex = await resolveHex(cfg.vault);
+      const c = _opnet.getContract(vaultHex || cfg.vault, FEEVEST_ABI, _provider, _network, _walletAddrObj);
+      const ownerR = await c.owner();
+      const ownerAddr = ownerR?.properties?.ownerAddress;
+      if (ownerAddr) {
+        const legacyPk = _walletAddrObj?.legacyPublicKey;
+        if (legacyPk) {
+          Object.defineProperty(ownerAddr, 'legacyPublicKey', { get: () => legacyPk, configurable: true });
+        }
+        _ownerAddrForSim = ownerAddr;
+      }
+    } catch(e) { console.warn('[getFromAddr] owner() fetch failed:', e.message); }
+    return _ownerAddrForSim || _walletAddrObj;
+  }
+
+  async function toAddr(address) {
+    if (!address) return null;
+    if (_addrCache[address]) return _addrCache[address];
+
+    // ── Strategy 1: 0x hex → Address.fromString directly (1 param for contracts). ──
+    if (address.startsWith('0x') && _AddressClass) {
+      try {
+        const addrObj = _AddressClass.fromString(address);
+        if (addrObj) { _addrCache[address] = addrObj; return addrObj; }
+      } catch(e) { console.warn('[toAddr] S1:', e.message); }
+    }
+
+    // ── Strategy 1.5: bech32 contract → cached/decoded hex → fromString(1 param). ─
+    if (!address.startsWith('0x') && _AddressClass) {
+      const knownHex = _hexCache[address];
+      if (knownHex) {
+        try {
+          const addrObj = _AddressClass.fromString(knownHex);
+          if (addrObj) { _addrCache[address] = addrObj; return addrObj; }
+        } catch(e) { console.warn('[toAddr] S1.5 cache:', e.message); }
+      }
+      if (_btcAddress) {
+        try {
+          const decoded = _btcAddress.fromBech32(address);
+          if (decoded?.data?.length >= 32) {
+            const bytes = Array.from(decoded.data).slice(0, 32);
+            const hex = '0x' + bytes.map(b => b.toString(16).padStart(2,'0')).join('');
+            const addrObj = _AddressClass.fromString(hex);
+            if (addrObj) { _addrCache[address] = addrObj; _hexCache[address] = hex; return addrObj; }
+          }
+        } catch(e) { console.warn('[toAddr] S1.5 bech32:', e.message); }
+      }
+    }
+
+    // ── Strategy 2: bech32 → raw RPC → tweakedPubkey. ─────────────────────
+    try {
+      const resp = await fetch(RPC_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'btc_getPublicKeyInfo',
+                               params: [address], id: 1 })
+      });
+      const json = await resp.json();
+      const rpcInfo = json?.result?.[address];
+      const mldsaHash = rpcInfo?.mldsaHashedPublicKey;
+      const tweaked   = rpcInfo?.tweakedPubkey;
+      const first     = mldsaHash ?? tweaked;
+      const second    = tweaked ?? first;
+      if (first && second && _AddressClass) {
+        const p = first.startsWith('0x')  ? first  : '0x' + first;
+        const l = second.startsWith('0x') ? second : '0x' + second;
+        try {
+          const addrObj = _AddressClass.fromString(p, l);
+          if (addrObj) { _addrCache[address] = addrObj; return addrObj; }
+        } catch(e) { console.warn('[toAddr] S2 fromString:', e.message); }
+      }
+    } catch(e) { console.warn('[toAddr] S2 RPC:', e.message); }
+
+    // ── Strategy 3: opnet library provider (try both isContract flags). ─────
+    for (const flag of [false, true]) {
+      try {
+        const addrObj = await _provider.getPublicKeyInfo(address, flag);
+        if (addrObj) { _addrCache[address] = addrObj; return addrObj; }
+      } catch(_) {}
+    }
+
+    console.warn('[toAddr] all strategies failed for', address);
+    return null;
+  }
+
+  // ─── helpers ─────────────────────────────────────────────────────────────
+  function getCfg() {
+    return {
+      vault: document.getElementById('cfg-vault').value.trim(),
+      token: document.getElementById('cfg-token').value.trim(),
+    };
+  }
+  function fmt(val) {
+    if (!val && val !== 0n) return '—';
+    const n = typeof val === 'bigint' ? val : BigInt(val);
+    if (n === 0n) return '0';
+    if (n >= 10n**15n) {
+      const w = n / 10n**18n, f = (n % 10n**18n).toString().padStart(18,'0').slice(0,4);
+      return `${w}.${f}`;
+    }
+    return n.toString();
+  }
+  function parseTokenAmount(str) {
+    str = (str || '').trim().replace(/,/g, '');
+    if (!str) return null;
+    const parts = str.split('.');
+    if (parts.length > 2) return null;
+    const intPart = parts[0].replace(/^0+/, '') || '0';
+    const fracStr = (parts[1] || '').slice(0, 18).padEnd(18, '0');
+    try { return BigInt(intPart) * 10n ** 18n + BigInt(fracStr); } catch { return null; }
+  }
+  function bindAmountPreview(inputId, previewId) {
+    const inp = document.getElementById(inputId);
+    const pre = document.getElementById(previewId);
+    if (!inp || !pre) return;
+    inp.addEventListener('input', () => {
+      const v = parseTokenAmount(inp.value);
+      pre.textContent = v !== null ? `= ${v.toString()} wei` : inp.value ? '⚠ invalid number' : '';
+    });
+  }
+  function log(msg, cls='') {
+    const el = document.getElementById('activity-log');
+    if (!el) return;
+    const old = el.querySelector('.log-empty');
+    if (old) old.remove();
+    const d = document.createElement('div');
+    if (cls) d.className = cls;
+    d.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    el.appendChild(d);
+    el.scrollTop = el.scrollHeight;
+  }
+  const ok   = m => log('✓ ' + m, 'lok');
+  const err  = m => log('✗ ' + m, 'lerr');
+  const info = m => log('ℹ ' + m, 'linf');
+  const warn = m => log('⚠ ' + m, 'lwrn');
+
+  // ─── ABI (FeeVest) ───────────────────────────────────────────────────────
+  const FEEVEST_ABI = [
+    { name:'initialize', type:'function', constant:false,
+      inputs:[{name:'revenueToken',type:'ADDRESS'}],
+      outputs:[{name:'success',type:'BOOL'}] },
+    { name:'depositAndVest', type:'function', constant:false,
+      inputs:[
+        {name:'amount',type:'UINT256'},
+        {name:'beneficiary',type:'ADDRESS'},
+        {name:'cliffDuration',type:'UINT256'},
+        {name:'vestingDuration',type:'UINT256'}
+      ],
+      outputs:[{name:'success',type:'BOOL'}] },
+    { name:'release', type:'function', constant:false, inputs:[], outputs:[{name:'amount',type:'UINT256'}] },
+    { name:'depositRevenue', type:'function', constant:false,
+      inputs:[{name:'amount',type:'UINT256'}], outputs:[{name:'success',type:'BOOL'}] },
+    { name:'claimRevenue', type:'function', constant:false, inputs:[], outputs:[{name:'amount',type:'UINT256'}] },
+    { name:'getVesting', type:'function', constant:true,
+      inputs:[{name:'beneficiary',type:'ADDRESS'}],
+      outputs:[
+        {name:'totalAmount',type:'UINT256'},{name:'startBlock',type:'UINT256'},
+        {name:'cliffDuration',type:'UINT256'},{name:'vestingDuration',type:'UINT256'},
+        {name:'released',type:'UINT256'},{name:'releasable',type:'UINT256'}
+      ] },
+    { name:'getPendingRelease', type:'function', constant:true,
+      inputs:[{name:'beneficiary',type:'ADDRESS'}], outputs:[{name:'amount',type:'UINT256'}] },
+    { name:'getClaimableRevenue', type:'function', constant:true,
+      inputs:[{name:'beneficiary',type:'ADDRESS'}], outputs:[{name:'amount',type:'UINT256'}] },
+    { name:'totalLocked',          type:'function', constant:true, inputs:[], outputs:[{name:'amount',type:'UINT256'}] },
+    { name:'totalRevenueDeposited',type:'function', constant:true, inputs:[], outputs:[{name:'amount',type:'UINT256'}] },
+    { name:'owner',        type:'function', constant:true, inputs:[], outputs:[{name:'ownerAddress',type:'ADDRESS'}] },
+    { name:'revenueToken', type:'function', constant:true, inputs:[], outputs:[{name:'token',type:'ADDRESS'}] },
+  ];
+  const OP20_ABI = [
+    { name:'increaseAllowance', type:'function', constant:false,
+      inputs:[{name:'spender',type:'ADDRESS'},{name:'amount',type:'UINT256'}], outputs:[] },
+    { name:'mint', type:'function', constant:false,
+      inputs:[{name:'to',type:'ADDRESS'},{name:'amount',type:'UINT256'}],
+      outputs:[{name:'success',type:'BOOL'}] },
+    { name:'balanceOf', type:'function', constant:true,
+      inputs:[{name:'account',type:'ADDRESS'}], outputs:[{name:'balance',type:'UINT256'}] },
+  ];
+
+  // ─── connect ─────────────────────────────────────────────────────────────
+  window.connectWallet = async function() {
+    try {
+      info('Importing OPNet SDK…');
+      const [opnetMod, bitcoinMod] = await Promise.all([
+        import('https://esm.sh/opnet@latest'),
+        import('https://esm.sh/@btc-vision/bitcoin@latest'),
+      ]);
+      const { JSONRpcProvider, getContract } = opnetMod;
+      const { networks, address: btcAddr } = bitcoinMod;
+      _btcAddress = btcAddr;
+      try {
+        const txMod = await import('https://esm.sh/@btc-vision/transaction@latest');
+        _AddressClass = txMod.Address || opnetMod.Address || null;
+      } catch(_) { _AddressClass = opnetMod.Address || null; }
+      _network = networks.opnetTestnet;
+      _provider = new JSONRpcProvider(RPC_URL, _network);
+      _opnet = { getContract };
+
+      if (window.opnet) {
+        const accs = await window.opnet.requestAccounts();
+        walletAddress = accs[0];
+      } else if (window.unisat) {
+        const accs = await window.unisat.requestAccounts();
+        walletAddress = accs[0];
+      } else {
+        warn('OP Wallet not detected. Install from opwallet.org — running read-only.');
+      }
+
+      if (walletAddress) {
+        document.getElementById('cfg-wallet').value = walletAddress;
+        document.getElementById('wallet-short').textContent = walletAddress.slice(0,10) + '…';
+        document.getElementById('wallet-info').style.display = 'flex';
+        document.getElementById('nav-connect-btn').style.display = 'none';
+        // ── Step A: get Bitcoin pubkey + ML-DSA key from wallet extension ────
+        let rawPk = null;
+        try {
+          const ext = window.opnet || window.unisat;
+          if (ext?.getPublicKey)  rawPk = await ext.getPublicKey();
+          if (!rawPk && ext?.getPublickey) rawPk = await ext.getPublickey();
+
+          // ── Step B: ML-DSA hash from wallet if available ──────────────────
+          let mldsaRaw = null;
+          for (const m of ['getHashedMLDSAKey','getMLDSAPublicKey','getMldsaPublicKey','getHashedMldsaKey']) {
+            if (typeof ext?.[m] === 'function') {
+              try { mldsaRaw = await ext[m](); break; } catch(_) {}
+            }
+          }
+
+          // ── Step C: build Address from pubkey ────────────────────────────
+          if (rawPk && _AddressClass) {
+            const pk33 = rawPk.startsWith('0x') ? rawPk : '0x' + rawPk;
+            const pk33raw = pk33.slice(2);
+            const xOnly   = '0x' + (pk33raw.length === 66 ? pk33raw.slice(2) : pk33raw);
+            const mldsaHex = mldsaRaw ? (mldsaRaw.startsWith('0x') ? mldsaRaw : '0x'+mldsaRaw) : null;
+
+            const attempts = [
+              mldsaHex ? () => _AddressClass.fromString(mldsaHex, pk33) : null,
+              () => _AddressClass.fromString(xOnly, pk33),
+              () => _AddressClass.fromString(pk33, pk33),
+            ].filter(Boolean);
+
+            for (const fn of attempts) {
+              try {
+                const a = fn();
+                if (a) {
+                  const pkBytes = new Uint8Array(pk33raw.match(/.{2}/g).map(b=>parseInt(b,16)));
+                  try { Object.defineProperty(a,'legacyPublicKey',{get:()=>pkBytes,configurable:true}); } catch(_){}
+                  _walletAddrObj = a;
+                  _addrCache[walletAddress] = a;
+                  break;
+                }
+              } catch(_) {}
+            }
+          }
+
+          // ── Step D: provider.getPublicKeyInfo with hex pubkey ─────────────
+          if (!_walletAddrObj && rawPk) {
+            const pk33 = rawPk.startsWith('0x') ? rawPk : '0x' + rawPk;
+            for (const flag of [false, true]) {
+              try {
+                const a = await _provider.getPublicKeyInfo(pk33, flag);
+                if (a) { _walletAddrObj = a; _addrCache[walletAddress] = a; break; }
+              } catch(_) {}
+            }
+          }
+        } catch(e) { console.warn('[connect] pubkey block:', e.message); }
+
+        // ── Step E: last resort — toAddr(bech32) ─────────────────────────────
+        if (!_walletAddrObj) _walletAddrObj = await toAddr(walletAddress);
+      }
+
+      document.getElementById('dash-gate').style.display = 'none';
+      document.getElementById('dash-content').style.display = 'block';
+      ok('Wallet connected' + (walletAddress ? ': ' + walletAddress.slice(0,14)+'…' : ' (read-only)'));
+      await loadDashboard();
+    } catch(e) { err('Connect failed: ' + e.message); }
+  };
+
+  // ─── load dashboard ───────────────────────────────────────────────────────
+  window.loadDashboard = async function() {
+    const cfg = getCfg();
+    if (!cfg.vault || !_opnet) return;
+    try {
+      info('Loading vault state…');
+      const { getContract } = _opnet;
+      const fromAddr = _walletAddrObj || await toAddr(cfg.vault);
+      const vaultHex = await resolveHex(cfg.vault);
+      const c = getContract(vaultHex || cfg.vault, FEEVEST_ABI, _provider, _network, fromAddr);
+
+      const [lockedR, revR] = await Promise.all([c.totalLocked(), c.totalRevenueDeposited()]);
+      const locked = lockedR.properties?.amount ?? 0n;
+      const rev    = revR.properties?.amount    ?? 0n;
+
+      document.getElementById('sb-locked').textContent  = fmt(locked);
+      document.getElementById('sb-revenue').textContent = fmt(rev);
+      document.getElementById('ds-locked').textContent  = fmt(locked);
+      document.getElementById('ds-revenue').textContent = fmt(rev);
+
+      try {
+        const bn = await _provider.getBlockNumber?.();
+        if (bn) document.getElementById('sb-block').textContent = bn.toString();
+      } catch(_) {}
+
+      if (walletAddress && _walletAddrObj) {
+        const [relR, pendR, viR] = await Promise.all([
+          c.getPendingRelease(_walletAddrObj),
+          c.getClaimableRevenue(_walletAddrObj),
+          c.getVesting(_walletAddrObj),
+        ]);
+        const rel  = relR.properties?.amount  ?? 0n;
+        const pend = pendR.properties?.amount ?? 0n;
+        document.getElementById('ds-releasable').textContent = fmt(rel);
+        document.getElementById('ds-pending').textContent    = fmt(pend);
+        document.getElementById('rel-available').textContent = fmt(rel);
+        document.getElementById('claim-pending').textContent = fmt(pend);
+
+        const vi = viR.properties;
+        if (vi?.totalAmount > 0n) {
+          const pct = vi.vestingDuration > 0n
+            ? Number((vi.releasable * 100n) / vi.totalAmount)
+            : 0;
+          document.getElementById('vesting-progress-wrap').style.display = 'block';
+          document.getElementById('vp-bar').style.width = Math.min(pct, 100) + '%';
+          document.getElementById('vp-pct').textContent = pct + '% vested';
+          document.getElementById('vp-start').textContent = vi.startBlock?.toString() || '—';
+          document.getElementById('vp-dur').textContent   = vi.vestingDuration?.toString() || '—';
+          document.getElementById('vp-label').textContent = `${fmt(vi.releasable)} / ${fmt(vi.totalAmount)} releasable`;
+        }
+      }
+      ok('State refreshed');
+    } catch(e) { err('Load failed: ' + e.message); }
+  };
+
+  // ─── tab switch ──────────────────────────────────────────────────────────
+  window.switchTab = function(name) {
+    document.querySelectorAll('.tab-btn').forEach((b,i) => {
+      const tabs = ['release','vest','deposit','admin'];
+      b.classList.toggle('active', tabs[i] === name);
+    });
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+  };
+
+  // ─── send tx helpers ─────────────────────────────────────────────────────
+  async function sendTx(label, simFn) {
+    info(`Simulating ${label}…`);
+    const sim = await simFn();
+    if ('error' in sim) { err(`${label} sim failed: ${sim.error}`); return false; }
+    ok(`${label} simulation OK. Sending…`);
+    const tx = await sim.sendTransaction({ signer:null, mldsaSigner:null, refundTo: walletAddress, maximumAllowedSatToSpend: MAX_SAT, network: _network });
+    const txid = tx?.txid || tx?.hash || tx?.id || (typeof tx === 'string' ? tx : JSON.stringify(tx));
+    ok(`${label} TX: ${txid}`);
+    return true;
+  }
+
+  async function sendTxRetry(label, simFn, maxRetries = 20, delayMs = 10000) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      if (attempt > 1) {
+        info(`${label}: allowance not yet confirmed, retrying in ${delayMs / 1000}s… (${attempt}/${maxRetries})`);
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+      info(`Simulating ${label}…`);
+      try {
+        const sim = await simFn();
+        if ('error' in sim) {
+          if (attempt < maxRetries) continue;
+          err(`${label} sim failed: ${sim.error}`); return false;
+        }
+        ok(`${label} simulation OK. Sending…`);
+        const tx = await sim.sendTransaction({ signer:null, mldsaSigner:null, refundTo: walletAddress, maximumAllowedSatToSpend: MAX_SAT, network: _network });
+        const txid = tx?.txid || tx?.hash || tx?.id || (typeof tx === 'string' ? tx : JSON.stringify(tx));
+        ok(`${label} TX: ${txid}`);
+        return true;
+      } catch(e) {
+        if (attempt < maxRetries) { info(`${label}: sim threw (${e.message}), will retry…`); }
+        else { err(`${label} failed: ${e.message}`); return false; }
+      }
+    }
+    return false;
+  }
+
+  // ─── actions ─────────────────────────────────────────────────────────────
+  window.doRelease = async function() {
+    if (!walletAddress || !_opnet || !_walletAddrObj) { warn('Connect wallet first'); return; }
+    const { vault } = getCfg(); if (!vault) { warn('Set vault address'); return; }
+    try {
+      const from = await getFromAddr();
+      const vaultHex = await resolveHex(vault);
+      const c = _opnet.getContract(vaultHex || vault, FEEVEST_ABI, _provider, _network, from);
+      if (await sendTx('release()', () => c.release())) await loadDashboard();
+    } catch(e) { err('release() failed: ' + e.message); }
+  };
+
+  window.doClaimRevenue = async function() {
+    if (!walletAddress || !_opnet || !_walletAddrObj) { warn('Connect wallet first'); return; }
+    const { vault } = getCfg(); if (!vault) { warn('Set vault address'); return; }
+    try {
+      const from = await getFromAddr();
+      const vaultHex = await resolveHex(vault);
+      const c = _opnet.getContract(vaultHex || vault, FEEVEST_ABI, _provider, _network, from);
+      if (await sendTx('claimRevenue()', () => c.claimRevenue())) await loadDashboard();
+    } catch(e) { err('claimRevenue() failed: ' + e.message); }
+  };
+
+  window.doDepositRevenue = async function() {
+    if (!walletAddress || !_opnet || !_walletAddrObj) { warn('Connect wallet first'); return; }
+    const { vault, token } = getCfg();
+    const amount = document.getElementById('dep-amount').value.trim();
+    if (!vault || !token || !amount) { warn('Fill vault, token, and amount'); return; }
+    try {
+      const ab = parseTokenAmount(amount);
+      if (!ab || ab <= 0n) { warn('Invalid amount — enter a number like 1 or 1.5'); return; }
+      const from = await getFromAddr();
+      const [vaultAddr, vaultHex, tokenHex] = await Promise.all([toAddr(vault), resolveHex(vault), resolveHex(token)]);
+      const tok = _opnet.getContract(tokenHex || token, OP20_ABI, _provider, _network, from);
+      if (!await sendTx('increaseAllowance()', () => tok.increaseAllowance(vaultAddr, ab))) return;
+      const c = _opnet.getContract(vaultHex || vault, FEEVEST_ABI, _provider, _network, from);
+      if (await sendTxRetry('depositRevenue()', () => c.depositRevenue(ab))) await loadDashboard();
+    } catch(e) { err('depositRevenue() failed: ' + e.message); }
+  };
+
+  window.doDepositAndVest = async function() {
+    if (!walletAddress || !_opnet || !_walletAddrObj) { warn('Connect wallet first'); return; }
+    const { vault, token } = getCfg();
+    const ben = document.getElementById('dv-beneficiary').value.trim();
+    const amt = document.getElementById('dv-amount').value.trim();
+    const clf = document.getElementById('dv-cliff').value.trim();
+    const dur = document.getElementById('dv-duration').value.trim();
+    if (!vault || !token || !ben || !amt || !clf || !dur) { warn('Fill all fields'); return; }
+    try {
+      const ab = parseTokenAmount(amt);
+      if (!ab || ab <= 0n) { warn('Invalid amount — enter a number like 1 or 1.5'); return; }
+      const cb = BigInt(clf), db = BigInt(dur);
+      if (db === 0n) { warn('Duration must be > 0'); return; }
+      if (cb > db) { warn('Cliff cannot exceed duration'); return; }
+      const [benAddr, vaultAddr, vaultHex, tokenHex, from] = await Promise.all([
+        toAddr(ben), toAddr(vault), resolveHex(vault), resolveHex(token), getFromAddr()
+      ]);
+      if (!benAddr) { err('Could not resolve beneficiary address'); return; }
+      if (!vaultAddr) { err('Could not resolve vault address'); return; }
+      // Step 1: approve
+      const tok = _opnet.getContract(tokenHex || token, OP20_ABI, _provider, _network, from);
+      if (!await sendTx('increaseAllowance()', () => tok.increaseAllowance(vaultAddr, ab))) return;
+      // Step 2: depositAndVest — amount FIRST (matches contract ABI order)
+      const c = _opnet.getContract(vaultHex || vault, FEEVEST_ABI, _provider, _network, from);
+      if (await sendTxRetry('depositAndVest()', () => c.depositAndVest(ab, benAddr, cb, db))) {
+        ok(`Vesting created for ${ben.slice(0,14)}…`);
+        await loadDashboard();
+      }
+    } catch(e) { err('depositAndVest() failed: ' + e.message); }
+  };
+
+  window.doMint = async function() {
+    if (!walletAddress || !_opnet || !_walletAddrObj) { warn('Connect wallet first'); return; }
+    const { token } = getCfg();
+    if (!token) { warn('Fill Token Address in config'); return; }
+    const toRaw  = (document.getElementById('mint-to').value.trim() || walletAddress);
+    const amount = document.getElementById('mint-amount').value.trim();
+    if (!amount || Number(amount) <= 0) { warn('Enter a mint amount'); return; }
+    try {
+      const [toAddr_, tokenHex, from] = await Promise.all([
+        toAddr(toRaw || walletAddress), resolveHex(token), getFromAddr()
+      ]);
+      if (!toAddr_) { err('Could not resolve recipient address'); return; }
+      const tok = _opnet.getContract(tokenHex || token, OP20_ABI, _provider, _network, from);
+      const amtBig = parseTokenAmount(amount);
+      if (!amtBig) { warn('Invalid amount'); return; }
+      if (await sendTx('mint()', () => tok.mint(toAddr_, amtBig))) {
+        ok(`Minted ${amount} FEE to ${toRaw.slice(0,14)}…`);
+        // Refresh balance display
+        try {
+          const balR = await tok.balanceOf(toAddr_);
+          const bal = balR?.properties?.balance ?? 0n;
+          document.getElementById('mint-balance').textContent = `Balance: ${fmt(bal)} FEE`;
+        } catch(_) {}
+      }
+    } catch(e) { err('mint() failed: ' + e.message); }
+  };
+
+  window.doInitialize = async function() {
+    if (!walletAddress || !_opnet || !_walletAddrObj) { warn('Connect wallet first'); return; }
+    const { vault, token } = getCfg();
+    if (!vault || !token) { warn('Fill vault and token addresses'); return; }
+    try {
+      const [tokenAddr, vaultHex, from] = await Promise.all([toAddr(token), resolveHex(vault), getFromAddr()]);
+      if (!tokenAddr) { err('Could not resolve token address'); return; }
+      const c = _opnet.getContract(vaultHex || vault, FEEVEST_ABI, _provider, _network, from);
+      if (await sendTx('initialize()', () => c.initialize(tokenAddr))) {
+        ok('FeeVest initialized! Token address set.');
+        await loadDashboard();
+      }
+    } catch(e) { err('initialize() failed: ' + e.message); }
+  };
+
+  window.scrollToDash = function() { document.getElementById('dashboard').scrollIntoView({ behavior:'smooth' }); };
+
+  window.copyAddr = function(inputId, btn) {
+    const val = document.getElementById(inputId)?.value;
+    if (!val) return;
+    navigator.clipboard.writeText(val).then(() => {
+      btn.classList.add('copied'); btn.textContent = '✓';
+      setTimeout(() => { btn.classList.remove('copied'); btn.textContent = '⎘'; }, 1500);
+    }).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = val; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta);
+      btn.classList.add('copied'); btn.textContent = '✓';
+      setTimeout(() => { btn.classList.remove('copied'); btn.textContent = '⎘'; }, 1500);
+    });
+  };
+
+  document.getElementById('nav-connect-btn').addEventListener('click', connectWallet);
+  bindAmountPreview('dep-amount', 'dep-amount-preview');
+  bindAmountPreview('dv-amount',  'dv-amount-preview');
+</script>
+
+</body>
+</html>

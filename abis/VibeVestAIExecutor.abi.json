@@ -1,0 +1,236 @@
+{
+    "functions": [
+        {
+            "name": "initialize",
+            "type": "Function",
+            "payable": false,
+            "onlyOwner": false,
+            "inputs": [
+                {
+                    "name": "publicVesting",
+                    "type": "ADDRESS"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "success",
+                    "type": "BOOL"
+                }
+            ]
+        },
+        {
+            "name": "setPublicVesting",
+            "type": "Function",
+            "payable": false,
+            "onlyOwner": false,
+            "inputs": [
+                {
+                    "name": "newPublicVesting",
+                    "type": "ADDRESS"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "success",
+                    "type": "BOOL"
+                }
+            ]
+        },
+        {
+            "name": "setRiskParams",
+            "type": "Function",
+            "payable": false,
+            "onlyOwner": false,
+            "inputs": [
+                {
+                    "name": "maxAmountPerTx",
+                    "type": "UINT256"
+                },
+                {
+                    "name": "globalMinBlocksGap",
+                    "type": "UINT256"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "success",
+                    "type": "BOOL"
+                }
+            ]
+        },
+        {
+            "name": "setAllowedToken",
+            "type": "Function",
+            "payable": false,
+            "onlyOwner": false,
+            "inputs": [
+                {
+                    "name": "token",
+                    "type": "ADDRESS"
+                },
+                {
+                    "name": "allowed",
+                    "type": "UINT256"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "success",
+                    "type": "BOOL"
+                }
+            ]
+        },
+        {
+            "name": "executeIntent",
+            "type": "Function",
+            "payable": false,
+            "onlyOwner": false,
+            "inputs": [
+                {
+                    "name": "user",
+                    "type": "ADDRESS"
+                },
+                {
+                    "name": "action",
+                    "type": "UINT256"
+                },
+                {
+                    "name": "token",
+                    "type": "ADDRESS"
+                },
+                {
+                    "name": "amount",
+                    "type": "UINT256"
+                },
+                {
+                    "name": "beneficiary",
+                    "type": "ADDRESS"
+                },
+                {
+                    "name": "durationDays",
+                    "type": "UINT256"
+                },
+                {
+                    "name": "minClaimable",
+                    "type": "UINT256"
+                },
+                {
+                    "name": "minBlocksGap",
+                    "type": "UINT256"
+                },
+                {
+                    "name": "nonce",
+                    "type": "UINT256"
+                },
+                {
+                    "name": "deadline",
+                    "type": "UINT256"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "success",
+                    "type": "BOOL"
+                }
+            ]
+        },
+        {
+            "name": "getRiskParams",
+            "type": "Function",
+            "payable": false,
+            "onlyOwner": false,
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "maxAmountPerTx",
+                    "type": "UINT256"
+                },
+                {
+                    "name": "globalMinBlocksGap",
+                    "type": "UINT256"
+                }
+            ]
+        },
+        {
+            "name": "getLastExecutedBlock",
+            "type": "Function",
+            "payable": false,
+            "onlyOwner": false,
+            "inputs": [
+                {
+                    "name": "user",
+                    "type": "ADDRESS"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "blockNumber",
+                    "type": "UINT256"
+                }
+            ]
+        },
+        {
+            "name": "getNextNonce",
+            "type": "Function",
+            "payable": false,
+            "onlyOwner": false,
+            "inputs": [
+                {
+                    "name": "user",
+                    "type": "ADDRESS"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "nonce",
+                    "type": "UINT256"
+                }
+            ]
+        },
+        {
+            "name": "isTokenAllowed",
+            "type": "Function",
+            "payable": false,
+            "onlyOwner": false,
+            "inputs": [
+                {
+                    "name": "token",
+                    "type": "ADDRESS"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "allowed",
+                    "type": "UINT256"
+                }
+            ]
+        },
+        {
+            "name": "getPublicVesting",
+            "type": "Function",
+            "payable": false,
+            "onlyOwner": false,
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "publicVesting",
+                    "type": "ADDRESS"
+                }
+            ]
+        },
+        {
+            "name": "owner",
+            "type": "Function",
+            "payable": false,
+            "onlyOwner": false,
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "ownerAddress",
+                    "type": "ADDRESS"
+                }
+            ]
+        }
+    ],
+    "events": []
+}
