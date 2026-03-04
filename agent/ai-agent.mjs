@@ -22,6 +22,7 @@ import { CallResult, getContract, JSONRpcProvider } from 'opnet';
 import { Address, AddressTypes, MLDSASecurityLevel, Mnemonic } from '@btc-vision/transaction';
 import { networks } from '@btc-vision/bitcoin';
 import { createRequire } from 'module';
+import http from 'http';
 
 const require = createRequire(import.meta.url);
 const FEEVEST_ABI_JSON = require('../abis/FeeVest.abi.json');
@@ -35,8 +36,38 @@ const FEEVEST_P2OP  = 'opt1sqqcgjuyshp4x4p4epuve9th60sxg6t3zhczv5ntm';
 const AI_MODEL      = process.env.AI_MODEL ?? 'google/gemini-3-flash-preview';
 const POLL_SEC      = parseInt(process.env.POLL_INTERVAL ?? '30', 10);
 const DRY_RUN       = process.env.DRY_RUN === '1';
+const HTTP_PORT     = parseInt(process.env.PORT ?? '3000', 10);
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+
+// ─── In-memory log store (shown on website) ──────────────────────────────────
+const agentLog = [];   // max 50 entries
+let agentStatus = { running: false, cycle: 0, lastBlock: 0, startedAt: new Date().toISOString() };
+
+function pushLog(entry) {
+    agentLog.unshift(entry);           // newest first
+    if (agentLog.length > 50) agentLog.pop();
+}
+
+// ─── HTTP server (health + public log API) ───────────────────────────────────
+function startHttpServer() {
+    const server = http.createServer((req, res) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+
+        if (req.url === '/health') {
+            res.writeHead(200);
+            res.end(JSON.stringify({ ok: true, ...agentStatus }));
+        } else if (req.url === '/api/log') {
+            res.writeHead(200);
+            res.end(JSON.stringify({ status: agentStatus, log: agentLog }));
+        } else {
+            res.writeHead(404);
+            res.end(JSON.stringify({ error: 'not found' }));
+        }
+    });
+    server.listen(HTTP_PORT, () => log(`HTTP server → http://localhost:${HTTP_PORT}`));
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function log(msg)  { console.log(`[${ts()}] ${msg}`); }
@@ -236,8 +267,11 @@ async function main() {
     log('══════════════════════════════════════════════');
     log('');
 
+    startHttpServer();
+
     const history = [];
     let cycle = 0;
+    agentStatus.running = true;
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
@@ -248,6 +282,8 @@ async function main() {
             // 1. Read chain state
             log('Reading chain state…');
             const state = await readState(provider, feeVestAbi, wallet.address);
+            agentStatus.lastBlock = state.blockNumber;
+            agentStatus.cycle = cycle;
 
             log(`  block:     #${state.blockNumber}`);
             log(`  releasable: ${fmt18(state.releasable)} REV`);
@@ -255,6 +291,13 @@ async function main() {
 
             if (state.totalAmount === 0n) {
                 log('  No active vesting schedule. Waiting…');
+                pushLog({
+                    time: new Date().toISOString(), cycle,
+                    block: state.blockNumber,
+                    action: 'wait', confidence: 1,
+                    reason: 'No active vesting schedule.',
+                    releasable: '0', claimable: '0', txId: null,
+                });
                 await sleep(POLL_SEC * 1000);
                 continue;
             }
@@ -270,13 +313,32 @@ async function main() {
             // 3. Execute
             await execute(decision, vault, wallet, provider);
 
-            // 4. Record history
+            // 4. Record history + push to public log
             const entry = `[block ${state.blockNumber}] ${decision.action}: ${decision.reason}`;
             history.push(entry);
             if (history.length > 20) history.shift();
 
+            pushLog({
+                time:       new Date().toISOString(),
+                cycle,
+                block:      state.blockNumber,
+                action:     decision.action,
+                confidence: decision.confidence ?? 0,
+                reason:     decision.reason,
+                releasable: fmt18(state.releasable),
+                claimable:  fmt18(state.claimable),
+                dryRun:     DRY_RUN,
+            });
+
         } catch (err) {
             warn(`Cycle error: ${err?.message ?? err}`);
+            pushLog({
+                time: new Date().toISOString(), cycle,
+                block: agentStatus.lastBlock,
+                action: 'error', confidence: 0,
+                reason: err?.message ?? String(err),
+                releasable: '?', claimable: '?',
+            });
         }
 
         log('');

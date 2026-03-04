@@ -360,8 +360,9 @@
       <a href="#how-it-works">How it works</a>
       <a href="#features">Architecture</a>
       <a href="#dashboard">Dashboard</a>
+      <a href="#ai-agent" style="color:var(--orange);">AI Agent</a>
       <a href="#security">Security</a>
-      <a href="https://github.com/Anda4ka/PublicVesting" target="_blank">GitHub</a>
+      <a href="https://github.com/Anda4ka/VibeVest-AI" target="_blank">GitHub</a>
     </div>
     <div class="nav-right">
       <div class="wallet-info" id="wallet-info">
@@ -824,6 +825,112 @@ Grand total     = 1700 = deposited ✓</div>
     </div>
   </div>
 </section>
+
+<!-- ═══════════════════════════════════ AI AGENT LIVE FEED -->
+<section class="section" id="ai-agent" style="background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+  <div class="container">
+    <div class="section-label">AI Agent</div>
+    <h2 class="section-title">Live Decision Feed</h2>
+    <p class="section-sub" style="margin-bottom:40px;">Gemini reads the Bitcoin L1 blockchain every 30 seconds and decides autonomously when to release vested tokens or claim revenue.</p>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:32px;" id="agent-stats">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;">
+        <div style="font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text2);margin-bottom:8px;">Status</div>
+        <div style="font-size:1.1rem;font-weight:700;" id="agent-status-text">⏳ connecting…</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;">
+        <div style="font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text2);margin-bottom:8px;">Last Block</div>
+        <div style="font-size:1.1rem;font-weight:700;font-family:var(--mono);" id="agent-block">—</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;">
+        <div style="font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text2);margin-bottom:8px;">Cycles Run</div>
+        <div style="font-size:1.1rem;font-weight:700;font-family:var(--mono);" id="agent-cycle">—</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;">
+        <div style="font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text2);margin-bottom:8px;">Model</div>
+        <div style="font-size:.85rem;font-weight:600;font-family:var(--mono);color:var(--cyan);">gemini-3-flash</div>
+      </div>
+    </div>
+
+    <!-- Log feed -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
+      <div style="padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-weight:700;font-size:.9rem;">Recent AI Decisions</span>
+        <span style="font-size:.75rem;color:var(--text2);">auto-refreshes every 30s</span>
+      </div>
+      <div id="agent-log" style="padding:8px 0;min-height:120px;max-height:420px;overflow-y:auto;">
+        <div style="padding:32px;text-align:center;color:var(--muted);font-size:.9rem;">Loading agent data…</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+(function() {
+  // ← replace with your Railway URL after deploy
+  const AGENT_URL = (window.AGENT_API_URL || '').replace(/\/$/, '');
+
+  const ACTION_COLOR = { release:'var(--green)', claim_revenue:'var(--cyan)', both:'var(--orange)', wait:'var(--text2)', error:'var(--red)' };
+  const ACTION_ICON  = { release:'🔓', claim_revenue:'💰', both:'⚡', wait:'⏸', error:'⚠️' };
+
+  function renderLog(entries) {
+    if (!entries || entries.length === 0) {
+      return '<div style="padding:32px;text-align:center;color:var(--muted);font-size:.9rem;">No decisions yet — agent is warming up…</div>';
+    }
+    return entries.map(e => {
+      const color = ACTION_COLOR[e.action] || 'var(--text2)';
+      const icon  = ACTION_ICON[e.action]  || '•';
+      const pct   = Math.round((e.confidence || 0) * 100);
+      const time  = e.time ? new Date(e.time).toLocaleTimeString() : '';
+      return `<div style="display:flex;align-items:flex-start;gap:16px;padding:14px 24px;border-bottom:1px solid rgba(255,255,255,.04);">
+        <span style="font-size:1.3rem;flex-shrink:0;margin-top:2px;">${icon}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap;">
+            <span style="font-weight:700;font-size:.88rem;color:${color};text-transform:uppercase;letter-spacing:.06em;">${e.action}</span>
+            <span style="font-size:.75rem;color:var(--text2);font-family:var(--mono);">block #${e.block}</span>
+            <span style="font-size:.75rem;color:var(--muted);">${time}</span>
+            ${pct ? `<span style="font-size:.72rem;color:var(--muted);">${pct}% confidence</span>` : ''}
+          </div>
+          <div style="font-size:.85rem;color:var(--text2);line-height:1.5;">${e.reason || ''}</div>
+          ${(e.releasable && e.releasable !== '0') || (e.claimable && e.claimable !== '0') ? `
+          <div style="display:flex;gap:16px;margin-top:6px;">
+            ${e.releasable !== '0' ? `<span style="font-size:.75rem;font-family:var(--mono);color:var(--green);">releasable: ${e.releasable} REV</span>` : ''}
+            ${e.claimable  !== '0' ? `<span style="font-size:.75rem;font-family:var(--mono);color:var(--cyan);">claimable: ${e.claimable} REV</span>` : ''}
+          </div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function fetchAgentData() {
+    if (!AGENT_URL) {
+      document.getElementById('agent-log').innerHTML =
+        '<div style="padding:24px 32px;color:var(--muted);font-size:.85rem;">🔌 Agent API URL not configured yet. Set <code style="font-family:var(--mono);color:var(--cyan)">window.AGENT_API_URL</code> or deploy the agent to Railway.</div>';
+      document.getElementById('agent-status-text').textContent = '⚪ not configured';
+      return;
+    }
+    try {
+      const r = await fetch(AGENT_URL + '/api/log');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const data = await r.json();
+      const s = data.status || {};
+      document.getElementById('agent-status-text').innerHTML = s.running
+        ? '<span style="color:var(--green)">● running</span>'
+        : '<span style="color:var(--red)">● offline</span>';
+      document.getElementById('agent-block').textContent = s.lastBlock ? '#' + s.lastBlock : '—';
+      document.getElementById('agent-cycle').textContent = s.cycle || '—';
+      document.getElementById('agent-log').innerHTML = renderLog(data.log);
+    } catch(e) {
+      document.getElementById('agent-status-text').innerHTML = '<span style="color:var(--red)">● offline</span>';
+      document.getElementById('agent-log').innerHTML =
+        '<div style="padding:24px 32px;color:var(--muted);font-size:.85rem;">⚪ Agent offline or not reachable. Start the agent on Railway.</div>';
+    }
+  }
+
+  fetchAgentData();
+  setInterval(fetchAgentData, 30_000);
+})();
+</script>
 
 <!-- ═══════════════════════════════════ FOOTER -->
 <footer>
