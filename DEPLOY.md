@@ -2,19 +2,25 @@
 
 ## Deployed Contracts (OPNet Testnet)
 
-> Update this table after your deployment.
-
-| Contract | Bech32 Address | SDK Hex Address |
-|----------|----------------|-----------------|
-| **FeeVest** | `opt1s...` | `0x...` |
-| **FeeToken (FEE)** | `opt1s...` | `0x...` |
+| Contract | Bech32 Address | SDK Hex Address (tweakedPubkey) |
+|----------|----------------|--------------------------------|
+| **FeeVest v1** (old, missing depositAndVest) | `opt1sqplya7jvr5ryduzsrlezps6gfcfznddmeyjghym6` | `0x813078152d97d3181b8e52f64f24451aed1916b7d6c459c5146b098045080089` |
+| **FeeVest v2** (current, block #3856) | `opt1sqqcgjuyshp4x4p4epuve9th60sxg6t3zhczv5ntm` | `0x83d8c452bdaf0b13ca1e8867a1f0dd67840609601da994d43c67abb3482f24a2` |
+| **FeeToken (FEE)** | `opt1s...` (look up in explorer) | `0xdbe1fd1a52d80579d7f1ac7bac951b38084668944168689c3a011a482ccc9793` |
+| **VibeVestAIExecutor** | `opt1sqq82dr37wm4wqca0sz7az8hvjlxnpc8pcqxwsaff` | `0xeb7f4c354717a568d12b491d7ff2ad957ea36f7ba7d52941d06bef646badf546` |
 
 | Parameter | Value |
 |-----------|-------|
 | Network | OPNet Testnet (Signet fork) |
 | Explorer | https://opscan.org |
+| Owner | `opt1ps7vxl0vfcrl8uwvwrqntaqlvsmy5rr7ayug3luncwu38dt7ynfcssfhr2k` |
+| Owner hex | `0x87986fbd89c0fe7e398e1826be83ec86c9418fdd27111ff278772276afc49a71` |
+| Executor deploy block | #3,849 |
+| Executor deploy tx | `a2166b4641193b50799ba963aae41f77fbd9b182840c9385408815c19a358bee` |
 
-> **Note:** Use the SDK Hex Address (`0x...`) for `getContract()`. The bech32 (`opt1...`) is for explorer/display only.
+> **Note:** SDK Hex Address = `tweakedPubkey` returned by `getPublicKeyInfo` RPC. Use this for `getContract()` and contract-to-contract calls. The bech32 (`opt1...`) is for explorer/display only.
+>
+> **FeeVest is already initialized** — `revenueToken()` returns `0xdbe1fd1a52...` (FeeToken). ✓
 
 ---
 
