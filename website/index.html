@@ -870,9 +870,10 @@ Grand total     = 1700 = deposited ✓</div>
   </div>
 </section>
 
+<script>window.AGENT_API_URL = 'https://vibevest-ai-production.up.railway.app';</script>
+
 <script>
 (function() {
-  // ← replace with your Railway URL after deploy
   const AGENT_URL = (window.AGENT_API_URL || '').replace(/\/$/, '');
 
   const ACTION_COLOR = { release:'var(--green)', claim_revenue:'var(--cyan)', both:'var(--orange)', wait:'var(--text2)', error:'var(--red)' };
@@ -1542,7 +1543,6 @@ Grand total     = 1700 = deposited ✓</div>
   bindAmountPreview('dv-amount',  'dv-amount-preview');
 </script>
 
-<script>window.AGENT_API_URL = 'https://vibevest-ai-production.up.railway.app';</script>
 
 </body>
 </html>
