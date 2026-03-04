@@ -11,7 +11,8 @@
         "build:executor:release": "asc src/index_executor.ts --config asconfig.json --target executor-release",
         "build:all": "npm run build:release && npm run build:token && npm run build:executor:release",
         "clean": "rm -rf build/*",
-        "lint": "eslint src/"
+        "lint": "eslint src/",
+        "agent": "node agent/ai-agent.mjs"
     },
     "author": "Anda4ka",
     "license": "MIT",
